@@ -1,0 +1,150 @@
+# Vulnerability Report
+
+## Broken Access Control - IDOR (OWASP A5)
+
+### Executive Summary:
+This report identifies a high-severity Broken Access Control vulnerability (A5 in OWASP Top 10) in the API of an order service. The vulnerability allows unauthorized deletion of orders due to inadequate authorization checks. Immediate remediation is strongly recommended.
+
+### Affected Endpoints:
+- `GET /api/v1/orderservice/order/{order_id}`
+- `DELETE /api/v1/orderservice/order/{order_id}`
+
+### Detailed Findings:
+- **Description**: The DELETE endpoint does not enforce proper authorization checks, enabling unauthenticated users to delete orders.
+- **Impact**: Unauthorized deletion of orders, data loss, potential disruption of business operations.
+- **POC**:
+GET /api/v1/orderservice/order/ HTTP/1.1
+Host: 139.196.152.44:32677
+
+DELETE /api/v1/orderservice/order/19269289-d445-455c-af41-a2510b0cb93d HTTP/1.1
+Host: 139.196.152.44:32677
+
+
+### Missing Security Headers:
+- **Description**: Response headers lack essential security headers like Strict-Transport-Security, Content-Security-Policy, and Referrer-Policy.
+- **Impact**: Increased susceptibility to attacks like XSS, clickjacking, and data leakage.
+
+### Cross-Site Scripting (XSS) (OWASP A7):
+- **Description**: Potential XSS vulnerabilities exist due to user input in cookies (YsbCaptcha and JSESSIONID).
+- **Impact**: Attackers could inject malicious scripts, steal sensitive information, or perform unauthorized actions.
+
+### Cross-Origin Resource Sharing (CORS) Misconfiguration:
+- **Description**: Server allows requests from any origin (Access-Control-Allow-Origin: *), potentially broadening attack surfaces.
+- **Impact**: Unintended cross-origin access, increasing risk of unauthorized data access.
+
+### Sensitive Data Exposure:
+- **Description**: Order details (e.g., accountId, contactsDocumentNumber) are exposed in responses.
+- **Impact**: Potential leakage of sensitive information, violating confidentiality and privacy.
+
+### Insecure Session Cookie Handling:
+- **Description**: Session cookie JSESSIONID lacks secure attributes, exposing the application to session-related attacks.
+- **Impact**: Attackers could potentially hijack user sessions and compromise user accounts.
+
+### Recommendations:
+- Implement robust authorization checks for the DELETE endpoint, ensuring only authorized users can perform deletions.
+- Enforce user authentication and authorization mechanisms throughout the API.
+- Add missing security headers (e.g., Strict-Transport-Security, Content-Security-Policy, Referrer-Policy) to protect against common web attacks.
+- Implement proper input validation and sanitization for all user-provided data, especially in cookies, to prevent XSS attacks.
+- Review CORS configuration and restrict access to authorized origins.
+- Protect sensitive data in responses through encryption or masking.
+- Set secure attributes for session cookies (e.g., HttpOnly, Secure) to mitigate session hijacking risks.
+
+### Conclusion:
+This report highlights significant vulnerabilities in the API that must be addressed promptly to safeguard the application's security and protect sensitive data. Implementing the recommended mitigation measures is crucial to prevent unauthorized access, data breaches, and potential business disruptions.
+
+---
+
+## Broken Access Control: CSRF (OWASP A5)
+
+### Executive Summary:
+A critical vulnerability has been identified in the application's security configuration. Cross-Site Request Forgery (CSRF) protection has been disabled, leaving the application susceptible to CSRF attacks. This vulnerability is categorized as high priority and falls under the OWASP Top 10 category of "A10:2021-Server-Side Request Forgery (SSRF)". Immediate remediation is strongly recommended.
+
+### Vulnerability Details:
+- **Severity**: High
+- **Category**: Cross-Site Request Forgery (CSRF)
+- **OWASP Top 10 Classification**: A10:2021-Server-Side Request Forgery (SSRF)
+
+### POC Code:
+```java
+@Override protected void configure(HttpSecurity httpSecurity) throws Exception {
+  httpSecurity.httpBasic().disable()
+      // Close default CSRF
+      .csrf().disable() // Vulnerability: CSRF protection disabled
+      // Close session
+      .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+      .and()
+      .authorizeRequests()
+      .antMatchers(HttpMethod.GET, "/api/v1/adminbasicservice/adminbasic/stations").permitAll();
+}
+
+
+
+
+Possible Outcomes:
+Unauthorized actions on behalf of authenticated users
+Data theft or modification
+Account takeover
+Financial losses
+Reputational damage
+Recommendations:
+Enable CSRF Protection:
+Remove the .csrf().disable() line from the code to enable Spring Security's default CSRF protection.
+If disabling CSRF protection is unavoidable, implement alternative measures (e.g., custom CSRF tokens).
+Implement CSRF Tokens:
+Generate unguessable CSRF tokens for state-changing requests.
+Include the tokens in both forms and corresponding HTTP requests.
+Validate the tokens on the server-side to ensure authenticity.
+Review Sensitive Operations:
+Ensure that sensitive operations are not performed using GET requests.
+Use POST, PUT, or DELETE methods for state-changing actions.
+Penetration Testing:
+Conduct thorough penetration testing to identify and address any additional vulnerabilities.
+Security Awareness:
+Educate developers and security teams about CSRF attacks and prevention techniques.
+Additional Considerations:
+Regularly review and update security configurations.
+Stay informed about the latest security threats and best practices.
+Implement a comprehensive security testing and monitoring program.
+Conclusion:
+Addressing this CSRF vulnerability is crucial to protect the application and its users from potential attacks. By implementing the recommended measures, you can significantly reduce the risk of CSRF exploits and enhance the overall security posture of the application.
+
+
+Broken Access Control: Hardcoded Credentials (OWASP A2)
+Executive Summary:
+A critical vulnerability has been discovered in the Train Ticket app due to the presence of hardcoded credentials in the source code. This vulnerability falls under the OWASP Top 10 category A7: Identification and Authentication Failures. It enables attackers to gain unauthorized access to user accounts, potentially leading to data breaches, fraud, and system compromise. Immediate remediation is imperative to mitigate this high-impact risk.
+
+Vulnerability Details:
+Severity: Critical
+Category: A7: Identification and Authentication Failures (OWASP Top 10)
+POC Code:
+java
+Copy code
+User user = User.builder()
+    .userId("4d2a46c7-71cb-4cf1-b5bb-b68406d9da6f")
+    .username("fdse_microservice")
+    .password(passwordEncoder.encode("111111"))
+    .build();
+ 
+User admin = User.builder()
+    .userId(UUID.randomUUID().toString())
+    .username("admin")
+    .password(passwordEncoder.encode("222222"))
+    .roles(new HashSet<>(Arrays.asList("ROLE_ADMIN")))
+    .build();
+Possible Outcomes:
+Unauthorized access to user accounts, including privileged accounts
+Data breaches, including theft of personal information and payment details
+Fraudulent activities, such as booking unauthorized tickets or performing financial transactions
+System compromise, potentially leading to complete control of the application
+Compromise of other systems if credentials are reused
+Recommendations:
+Immediate:
+Revoke hardcoded credentials by removing them from the source code and invalidating them.
+Prompt affected users to reset their passwords through a secure mechanism.
+Long-Term:
+Implement secure storage for credentials using external configuration files, secrets management solutions, or environment variables.
+Minimize access to credentials, granting access only to authorized personnel with secure access controls.
+Conduct regular code reviews to identify and remediate hardcoded credentials before deployment.
+Utilize static analysis tools to automatically detect hardcoded credentials and other vulnerabilities during development.
+Conclusion:
+The presence of hardcoded credentials in the Train Ticket app poses a severe security risk. It's crucial to implement the recommended remediation measures to enhance the app's security posture and safeguard user data and system integrity.
